@@ -1,12 +1,12 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
+from app.config import database_settings
+
 from . import models
 
-SQLALCHEMY_DB_URL = "postgresql+asyncpg://postgres:password@localhost:5432/object_detection"
-
 engine = create_async_engine(
-    url= SQLALCHEMY_DB_URL
+    url= database_settings.POSTGRES_URL
 )
 
 AsyncSessionLocal = sessionmaker(
