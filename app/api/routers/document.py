@@ -4,13 +4,18 @@ import shutil
 
 from fastapi import APIRouter,File, UploadFile
 
+from app.api.dependencies import db_dependency
+from app.database.models import Document
+
 router = APIRouter(prefix="/document",tags=['Documents'])
 
 UPLOAD_DIR = "shared/uploads/images"
 
 
 @router.post("/upload")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    db: db_dependency,
+    file: UploadFile = File(...)):
     """Upload a file and create a DB entry"""
     document_id = uuid4()
 
@@ -21,6 +26,16 @@ async def upload_image(file: UploadFile = File(...)):
 
     with open(file_path,'wb') as buffer:
         shutil.copyfileobj(file.file,buffer)
+
+    doc = Document(
+        id = document_id,
+        filename = file.filename,
+        content_type = file.content_type,
+        status = "UPLOADED"
+    )
+
+    db.add(doc)
+    await db.commit()
 
     return {
         "document_id": str(document_id),
