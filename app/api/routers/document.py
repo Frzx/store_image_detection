@@ -17,7 +17,7 @@ async def upload_image(
     """Upload a file and create a DB entry"""
     document = await document_service.add(file)
     image_path = f"shared/uploads/images/{document.id}_{document.filename}"
-    task = detect_object.delay(image_path)
+    task = detect_object.delay(str(document.id), image_path)
 
     return {
         "document_id": str(document.id),
