@@ -23,5 +23,21 @@ class DatabaseSettings(BaseSettings):
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
     
+class CeleryRedisSettings(BaseSettings):
+    CELERY_REDIS_HOST: str
+    CELERY_REDIS_PORT: str
+    CELERY_REDIS_DB: int
+
+    model_config = _base_config
+
+    @property
+    def BROKER_URL(self):
+        return f"redis://{self.CELERY_REDIS_HOST}:{self.CELERY_REDIS_PORT}/{self.CELERY_REDIS_DB}"
+
+    @property
+    def RESULT_BACKEND(self):
+        return f"redis://{self.CELERY_REDIS_HOST}:{self.CELERY_REDIS_PORT}/{self.CELERY_REDIS_DB}"
+
 
 database_settings = DatabaseSettings()
+celery_redis_settings = CeleryRedisSettings()
