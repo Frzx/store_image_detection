@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column,String,Enum, DateTime
+from sqlalchemy import Column,String,Enum, DateTime, JSON
 from sqlalchemy.dialects import postgresql
 
 from .base import Base
@@ -15,6 +15,7 @@ class Document(Base):
         Enum("UPLOADED","PROCESSING","COMPLETED","FAILED",name="document_status"),
         default = "UPLOADED"
     )
+    result = Column(JSON, nullable=True)
     
     created_at = Column(
         DateTime,

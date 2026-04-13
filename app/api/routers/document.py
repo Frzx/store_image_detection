@@ -57,7 +57,8 @@ async def get_document(
         )
     
     return {
-        "document_id": document.id,
+        "document_id": str(document.id),
         "filename": document.filename,
-        "status": document.status
+        "status": document.status,
+        "result": document.result,
     }
