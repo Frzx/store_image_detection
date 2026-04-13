@@ -1,4 +1,4 @@
-from fastapi import APIRouter,File, UploadFile
+from fastapi import APIRouter,File, UploadFile, Path, HTTPException,status
 from celery.result import AsyncResult
 
 from app.tasks.object_detection import detect_object
@@ -27,7 +27,7 @@ async def upload_image(
     }
 
 @router.get("/tasks/{task_id}")
-def get_task_result(task_id: str):
+async def get_task_result(task_id: str):
     task = AsyncResult(task_id, app=celery_app)
 
     response = {
@@ -41,3 +41,23 @@ def get_task_result(task_id: str):
         response["error"] = str(task.result)
 
     return response
+
+
+@router.get("/{document_id}")
+async def get_document(
+    document_service: document_service_dep,
+    document_id:str = Path()
+):
+    document = await document_service.get_document(document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail = f"Document not found {document_id}"
+        )
+    
+    return {
+        "document_id": document.id,
+        "filename": document.filename,
+        "status": document.status
+    }

@@ -1,6 +1,6 @@
 import os
 import shutil
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,3 +32,7 @@ class DocumentService(BaseService[Document]):
         )
 
         return await self._add(doc)
+    
+
+    async def get_document(self,document_id: str):
+        return await self._get(UUID(document_id))
