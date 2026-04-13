@@ -15,6 +15,20 @@ async def upload_image(
     document_service: document_service_dep,
     file: UploadFile = File(...)):
     """Upload a file and create a DB entry"""
+    allowed_types = {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/jpg",
+        "image/bmp",
+    }
+
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported image format",
+        )
+    
     document = await document_service.add(file)
     image_path = f"shared/uploads/images/{document.id}_{document.filename}"
     task = detect_object.delay(str(document.id), image_path)
@@ -55,6 +69,8 @@ async def get_document(
             status_code= status.HTTP_404_NOT_FOUND,
             detail = f"Document not found {document_id}"
         )
+    
+
     
     return {
         "document_id": str(document.id),
