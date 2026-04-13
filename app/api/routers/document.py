@@ -5,7 +5,7 @@ from app.tasks.object_detection import detect_object
 from app.core.celery_app import celery_app
 
 from ..dependencies import document_service_dep
-from ..schemas.document import DocumentUploadResponse
+from ..schemas.document import DocumentUploadResponse, DocumentResponse
 
 router = APIRouter(prefix="/document",tags=['Documents'])
 
@@ -43,7 +43,7 @@ async def get_task_result(task_id: str):
     return response
 
 
-@router.get("/{document_id}")
+@router.get("/{document_id}", response_model = DocumentResponse)
 async def get_document(
     document_service: document_service_dep,
     document_id:str = Path()
