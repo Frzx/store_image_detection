@@ -1,0 +1,23 @@
+services:
+  celery_worker:
+    build: .
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    environment:
+      CELERY_REDIS_HOST: redis
+      CELERY_REDIS_PORT: 6379
+      CELERY_REDIS_DB: 0
+
+      POSTGRES_SERVER: host.docker.internal
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: object_detection
+    depends_on:
+      - redis
+    volumes:
+      - ./shared:/app/shared
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
