@@ -1,9 +1,10 @@
+from datetime import datetime
 from uuid import UUID
 
 from app.core.celery_app import celery_app
 from app.database.models import Document
 from app.database.sync_session import SyncSessionLocal
-from app.services.detection import detector
+from app.services.detection import get_detector
 
 
 def update_document_result(document_id: str, status: str, result: dict | None = None):
@@ -15,6 +16,7 @@ def update_document_result(document_id: str, status: str, result: dict | None = 
         document.status = status
         if result is not None:
             document.result = result
+        document.updated_at = datetime.now()
 
         session.commit()
 
@@ -24,7 +26,7 @@ def detect_object(document_id: str, image_path: str):
     try:
         update_document_result(document_id, "PROCESSING")
 
-        results = detector.predict(image_path)
+        results = get_detector().predict(document_id, image_path)
 
         update_document_result(document_id, "COMPLETED", results)
         return results

@@ -47,5 +47,17 @@ class CeleryRedisSettings(BaseSettings):
         return f"redis://{self.CELERY_REDIS_HOST}:{self.CELERY_REDIS_PORT}/{self.CELERY_REDIS_DB}"
 
 
+class ModelSettings(BaseSettings):
+    MODEL_ONNX_PATH: str = "models/detr-resnet-50.onnx"
+    MODEL_REPO_ID: str = "facebook/detr-resnet-50"
+    MODEL_HF_ONNX_FILENAME: str = "model.onnx"
+    MODEL_EXPORT_OPSET: int = 18
+    MODEL_IMAGE_SIZE: int = 800
+    MODEL_SCORE_THRESHOLD: float = 0.3
+
+    model_config = _base_config
+
+
 database_settings = DatabaseSettings()
 celery_redis_settings = CeleryRedisSettings()
+model_settings = ModelSettings()

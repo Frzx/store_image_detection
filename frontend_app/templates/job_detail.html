@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ job.filename }}</title>
+    {% if job.status in ["UPLOADED", "PROCESSING"] %}
+    <meta http-equiv="refresh" content="4">
+    {% endif %}
+    <style>
+        :root {
+            --bg: #f8f5ef;
+            --card: #fffefa;
+            --ink: #14202b;
+            --muted: #667085;
+            --border: #e8dfd4;
+            --accent: #9a3412;
+        }
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            background: linear-gradient(180deg, #fef3c7 0%, var(--bg) 22%, #f3eee6 100%);
+            color: var(--ink);
+        }
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 28px 20px 42px;
+        }
+        .card {
+            background: rgba(255, 254, 250, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 12px 30px rgba(74, 47, 21, 0.08);
+            margin-bottom: 22px;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .meta {
+            color: var(--muted);
+        }
+        .pill {
+            background: #ffedd5;
+            color: var(--accent);
+            border-radius: 999px;
+            padding: 6px 12px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        img {
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: white;
+        }
+        .detection-card {
+            background: linear-gradient(180deg, #fffdfa 0%, #f7f2ea 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+        .crop-frame {
+            position: relative;
+            padding: 14px;
+            background:
+                radial-gradient(circle at top left, #fff7ed 0%, transparent 52%),
+                linear-gradient(180deg, #f8f5ef 0%, #f2ede3 100%);
+        }
+        .crop-frame img {
+            display: block;
+            aspect-ratio: 1 / 1;
+            object-fit: contain;
+            box-shadow: 0 12px 24px rgba(20, 32, 43, 0.08);
+        }
+        .label-chip {
+            position: absolute;
+            left: 24px;
+            top: 24px;
+            background: rgba(20, 32, 43, 0.88);
+            color: #fffaf2;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 0.86rem;
+            letter-spacing: 0.01em;
+        }
+        .detection-body {
+            padding: 16px 18px 18px;
+        }
+        .detection-body h3 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .stat {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 12px;
+        }
+        .stat strong {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .bbox {
+            margin-top: 12px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        a {
+            color: inherit;
+        }
+        .back {
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <a class="back" href="/jobs">Back to all jobs</a>
+
+        <section class="card">
+            <div class="row">
+                <div>
+                    <h1>{{ job.filename }}</h1>
+                    <p class="meta">Job {{ job.document_id }}</p>
+                    <p class="meta">Created {{ job.created_at }}</p>
+                </div>
+                <span class="pill">{{ job.status }}</span>
+            </div>
+            {% if uploaded %}
+            <p class="meta">Upload completed. This page refreshes automatically while detection is still running.</p>
+            {% endif %}
+        </section>
+
+        {% if original_image_url %}
+        <section class="card">
+            <h2>Original Image</h2>
+            <img src="{{ backend_public_url }}{{ original_image_url }}" alt="Original upload">
+        </section>
+        {% endif %}
+
+        <section class="card">
+            <div class="section-head">
+                <h2>Detected Crops</h2>
+                <span class="pill">{{ detections|length }} results</span>
+            </div>
+            {% if detections %}
+            <div class="grid">
+                {% for detection in detections %}
+                <article class="detection-card">
+                    {% if detection.image_url %}
+                    <div class="crop-frame">
+                        <span class="label-chip">{{ detection.label_display }}</span>
+                        <img src="{{ detection.image_url }}" alt="{{ detection.label_display }}">
+                    </div>
+                    {% endif %}
+                    <div class="detection-body">
+                        <h3>{{ detection.label_display }}</h3>
+                        <p class="meta">Cropped detection artifact saved for this object.</p>
+                        <div class="stats">
+                            <div class="stat">
+                                <strong>Confidence</strong>
+                                <span>{{ detection.confidence }}</span>
+                            </div>
+                            <div class="stat">
+                                <strong>Source</strong>
+                                <span>{{ job.filename }}</span>
+                            </div>
+                        </div>
+                        <p class="meta bbox">Bounding box: {{ detection.bbox }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% elif job.status in ["UPLOADED", "PROCESSING"] %}
+            <p class="meta">Detection is still running. This page will refresh automatically.</p>
+            {% else %}
+            <p class="meta">No detections were saved for this job.</p>
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>

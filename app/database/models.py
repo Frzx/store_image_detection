@@ -25,5 +25,6 @@ class Document(Base):
 
     updated_at = Column(
         DateTime,
-        default = datetime.now
+        default = datetime.now,
+        onupdate = datetime.now,
     )

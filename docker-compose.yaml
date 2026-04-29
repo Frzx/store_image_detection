@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
     volumes:
       - uploads_data:/app/shared
+      - model_data:/app/models
 
   celery_worker:
     build: .
@@ -42,6 +43,20 @@ services:
     restart: unless-stopped
     volumes:
       - uploads_data:/app/shared
+      - model_data:/app/models
+
+  frontend:
+    build: .
+    command: uvicorn frontend_app.main:app --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"
+    environment:
+      BACKEND_API_URL: http://api:8000
+      BACKEND_PUBLIC_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -70,3 +85,4 @@ services:
 volumes:
   postgres_prod_data:
   uploads_data:
+  model_data:

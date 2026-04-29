@@ -1,4 +1,23 @@
 services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      CELERY_REDIS_HOST: redis
+      CELERY_REDIS_PORT: 6379
+      CELERY_REDIS_DB: 0
+      POSTGRES_SERVER: host.docker.internal
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: object_detection
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+
   celery_worker:
     build: .
     command: celery -A app.core.celery_app.celery_app worker --loglevel=info
@@ -15,7 +34,20 @@ services:
     depends_on:
       - redis
     volumes:
-      - ./shared:/app/shared
+      - .:/app
+
+  frontend:
+    build: .
+    command: uvicorn frontend_app.main:app --host 0.0.0.0 --port 8080 --reload
+    ports:
+      - "8080:8080"
+    environment:
+      BACKEND_API_URL: http://api:8000
+      BACKEND_PUBLIC_URL: http://localhost:8000
+    depends_on:
+      - api
+    volumes:
+      - .:/app
 
   redis:
     image: redis:7-alpine
