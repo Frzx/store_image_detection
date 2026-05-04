@@ -219,3 +219,4 @@ shared/
 __pycache__/
 
 models/
+testdata/
