@@ -114,18 +114,23 @@ async def job_detail(request: Request, job_id: str, uploaded: str | None = None)
         )
 
     result = job.get("result") or {}
-    detections = result.get("detections", [])
-    rendered_detections = [
+    frames = result.get("frames", [])
+    rendered_frames = [
         {
-            **detection,
+            **frame,
             "image_url": (
-                f"{frontend_settings.BACKEND_PUBLIC_URL.rstrip('/')}{detection['artifact_url']}"
-                if detection.get("artifact_url")
+                f"{frontend_settings.BACKEND_PUBLIC_URL.rstrip('/')}{frame['image_url']}"
+                if frame.get("image_url")
                 else None
             ),
-            "label_display": str(detection.get("label", "unknown")).replace("_", " ").title(),
+            "timestamp_display": f"{float(frame.get('timestamp_seconds', 0)):.1f}s",
+            "labels_display": ", ".join(
+                str(detection.get("label", "unknown")).replace("_", " ").title()
+                for detection in frame.get("detections", [])
+            )
+            or "No person or cell phone detected",
         }
-        for detection in detections
+        for frame in frames
     ]
 
     return templates.TemplateResponse(
@@ -135,7 +140,8 @@ async def job_detail(request: Request, job_id: str, uploaded: str | None = None)
             "job": job,
             "uploaded": uploaded,
             "backend_public_url": frontend_settings.BACKEND_PUBLIC_URL.rstrip("/"),
-            "original_image_url": result.get("original_image_url"),
-            "detections": rendered_detections,
+            "frames": rendered_frames,
+            "frame_interval_seconds": result.get("frame_interval_seconds"),
+            "detections_count": result.get("detections_count", 0),
         },
     )

@@ -1,6 +1,6 @@
-from pathlib import Path
 import re
 import shutil
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -9,13 +9,14 @@ import onnxruntime as ort
 import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError
-from PIL import Image
+from PIL import Image, ImageDraw
 from transformers import AutoConfig, AutoImageProcessor, AutoModelForObjectDetection
 
 from app.config import model_settings
 
 
 SAFE_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
+TARGET_LABELS = {"person", "cell phone"}
 
 
 class ObjectDetector:
@@ -83,8 +84,14 @@ class ObjectDetector:
             external_data=False,
         )
 
-    def predict(self, document_id: str, image_path: str) -> dict[str, Any]:
-        image = Image.open(image_path).convert("RGB")
+    def detect_frame(
+        self,
+        frame_path: Path,
+        document_id: str,
+        frame_index: int,
+        timestamp_seconds: float,
+    ) -> dict[str, Any]:
+        image = Image.open(frame_path).convert("RGB")
         img_w, img_h = image.size
         processor_inputs = self.image_processor(
             images=image,
@@ -106,59 +113,53 @@ class ObjectDetector:
         )[0]
 
         detections = []
-        artifact_dir = Path("shared") / "artifacts" / document_id
-        artifact_dir.mkdir(parents=True, exist_ok=True)
+        draw = ImageDraw.Draw(image)
 
-        for index, (score, label_id, box) in enumerate(
-            zip(
-                post_processed["scores"],
-                post_processed["labels"],
-                post_processed["boxes"],
-            ),
-            start=1,
+        for score, label_id, box in zip(
+            post_processed["scores"],
+            post_processed["labels"],
+            post_processed["boxes"],
         ):
-            x1, y1, x2, y2 = [float(value) for value in box.tolist()]
             label = self.classes.get(int(label_id), "unknown")
+            if label not in TARGET_LABELS:
+                continue
+
+            x1, y1, x2, y2 = [float(value) for value in box.tolist()]
             x1_i = max(0, min(int(round(x1)), img_w - 1))
             y1_i = max(0, min(int(round(y1)), img_h - 1))
             x2_i = max(x1_i + 1, min(int(round(x2)), img_w))
             y2_i = max(y1_i + 1, min(int(round(y2)), img_h))
-            crop = image.crop((x1_i, y1_i, x2_i, y2_i))
 
-            safe_label = SAFE_LABEL_PATTERN.sub("_", label).strip("._-") or "unknown"
-            artifact_filename = f"{index:02d}_{safe_label}.jpg"
-            artifact_path = artifact_dir / artifact_filename
+            draw.rectangle((x1_i, y1_i, x2_i, y2_i), outline="#0f766e", width=4)
+            draw.text((x1_i + 6, y1_i + 6), f"{label} {float(score.item()):.2f}", fill="#0f172a")
 
-            artifact_url = None
-            artifact_path_value = None
-            if crop.size[0] > 0 and crop.size[1] > 0:
-                crop.save(artifact_path, format="JPEG")
-                artifact_path_value = artifact_path.as_posix()
-                artifact_url = f"/files/artifacts/{document_id}/{artifact_filename}"
+            detections.append(
+                {
+                    "label": label,
+                    "confidence": round(float(score.item()), 4),
+                    "bbox": [
+                        round(x1, 2),
+                        round(y1, 2),
+                        round(x2, 2),
+                        round(y2, 2),
+                    ],
+                }
+            )
 
-            detections.append({
-                "label": label,
-                "confidence": round(float(score.item()), 4),
-                "bbox": [
-                    round(x1, 2),
-                    round(y1, 2),
-                    round(x2, 2),
-                    round(y2, 2),
-                ],
-                "artifact_path": artifact_path_value,
-                "artifact_url": artifact_url,
-            })
+        safe_stem = SAFE_LABEL_PATTERN.sub("_", frame_path.stem).strip("._-") or "frame"
+        annotated_dir = Path("shared") / "frames" / document_id
+        annotated_dir.mkdir(parents=True, exist_ok=True)
+        annotated_filename = f"{frame_index:04d}_{safe_stem}.jpg"
+        annotated_path = annotated_dir / annotated_filename
+        image.save(annotated_path, format="JPEG", quality=90)
 
         return {
-            "filename": Path(image_path).name,
-            "status": "success",
+            "frame_index": frame_index,
+            "timestamp_seconds": round(timestamp_seconds, 2),
+            "image_path": annotated_path.as_posix(),
+            "image_url": f"/files/frames/{document_id}/{annotated_filename}",
+            "detections_count": len(detections),
             "detections": detections,
-            "original_image_url": f"/files/uploads/images/{Path(image_path).name}",
-            "metadata": {
-                "model": str(self.model_path),
-                "runtime": "onnxruntime",
-                "provider": "CPUExecutionProvider",
-            },
         }
 
 

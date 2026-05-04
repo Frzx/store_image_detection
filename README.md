@@ -1,4 +1,4 @@
-# Object Detection Service
+# Video Detection Service
 
 This project runs a small object-detection pipeline with:
 
@@ -8,13 +8,13 @@ This project runs a small object-detection pipeline with:
 - Postgres for job metadata
 - Redis for the task queue
 
-Uploaded images are stored in `shared/uploads/images`, and cropped detection artifacts are stored in `shared/artifacts`.
+Uploaded videos are processed into annotated frames stored in `shared/frames`. The worker samples frames every `0.5` seconds and keeps only `person` and `cell phone` detections from the current model.
 
 ## Services
 
-- `api`: receives uploads, stores jobs, exposes job APIs, and serves uploaded/artifact files
-- `celery_worker`: runs object detection and saves cropped artifacts
-- `frontend`: browser UI for uploading images and viewing previous jobs
+- `api`: receives video uploads, stores jobs, exposes job APIs, and serves generated frame files
+- `celery_worker`: extracts frames, runs object detection, and saves annotated frames
+- `frontend`: browser UI for uploading videos and viewing previous jobs
 - `postgres`: job metadata database
 - `redis`: Celery broker/result backend
 
@@ -67,11 +67,25 @@ This version:
 
 Use the main `docker-compose.yaml` if you want Postgres included in the stack.
 
+## Local Development Requirements
+
+- Python `3.11+`
+- `ffmpeg` available on your `PATH`
+- Postgres
+- Redis
+
+To verify `ffmpeg` is available locally:
+
+```powershell
+ffmpeg -version
+```
+
 ## First Run Notes
 
 - The project runs inference on CPU using ONNX Runtime.
 - If the ONNX model file is missing, the worker will try to fetch model assets from Hugging Face and create the ONNX model on first use.
 - The first detection job may take longer because of model download/export and warm-up.
+- The worker uses `ffmpeg` to extract frames every `0.5` seconds before running detection.
 - You may see an ONNX Runtime GPU discovery warning in Docker logs. The app still runs on `CPUExecutionProvider`.
 
 ## Test The App
@@ -85,19 +99,19 @@ docker compose up --build
 ```
 
 2. Open [http://localhost:8080](http://localhost:8080)
-3. Upload an image
+3. Upload a video
 4. Wait for the job detail page to refresh
 5. Review:
-   - original image
-   - cropped detected objects
-   - labels and confidence scores
+   - annotated frames
+   - frame timestamps
+   - `person` and `cell phone` detections with bounding boxes
 
 ### Option 2: Use the API directly
 
-Upload an image:
+Upload a video:
 
 ```powershell
-curl.exe -X POST -F "file=@path/to/your-image.jpg" http://localhost:8000/jobs
+curl.exe -X POST -F "file=@path/to/your-video.mp4" http://localhost:8000/jobs
 ```
 
 Fetch a job by id:
@@ -143,4 +157,4 @@ docker compose logs -f api
 - `app/`: backend API, database, services, and Celery task code
 - `frontend_app/`: separate frontend application
 - `models/`: ONNX model storage
-- `shared/`: uploaded images and generated artifacts
+- `shared/`: uploaded videos during processing and generated frame artifacts

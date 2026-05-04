@@ -11,7 +11,7 @@ from app.database.models import Document
 from .base import BaseService
 
 SHARED_DIR = Path("shared")
-UPLOAD_DIR = SHARED_DIR / "uploads" / "images"
+UPLOAD_DIR = SHARED_DIR / "uploads" / "videos"
 
 
 class DocumentService(BaseService[Document]):
@@ -48,8 +48,8 @@ class DocumentService(BaseService[Document]):
     def enqueue_detection(self, document: Document) -> AsyncResult:
         from app.tasks.object_detection import detect_object
 
-        image_path = self.get_upload_path(document.id, document.filename)
-        return detect_object.delay(str(document.id), str(image_path))
+        video_path = self.get_upload_path(document.id, document.filename)
+        return detect_object.delay(str(document.id), str(video_path))
 
     @staticmethod
     def get_upload_path(document_id: UUID | str, filename: str) -> Path:

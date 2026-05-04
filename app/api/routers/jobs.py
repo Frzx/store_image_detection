@@ -12,17 +12,17 @@ async def upload_image(
     file: UploadFile = File(...),
 ):
     allowed_types = {
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/jpg",
-        "image/bmp",
+        "video/mp4",
+        "video/quicktime",
+        "video/webm",
+        "video/x-msvideo",
+        "video/mpeg",
     }
 
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported image format",
+            detail="Unsupported video format",
         )
 
     document = await document_service.add(file)
@@ -45,7 +45,7 @@ async def list_jobs(document_service: document_service_dep):
             "filename": document.filename,
             "status": document.status,
             "created_at": document.created_at.isoformat(),
-            "detections_count": len((document.result or {}).get("detections", [])),
+            "detections_count": (document.result or {}).get("detections_count", 0),
         }
         for document in documents
     ]

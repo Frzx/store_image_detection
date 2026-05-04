@@ -54,6 +54,8 @@ class ModelSettings(BaseSettings):
     MODEL_EXPORT_OPSET: int = 18
     MODEL_IMAGE_SIZE: int = 800
     MODEL_SCORE_THRESHOLD: float = 0.3
+    FRAME_EXTRACTION_INTERVAL_SECONDS: float = 0.5
+    FFMPEG_BIN: str = "ffmpeg"
 
     model_config = _base_config
 

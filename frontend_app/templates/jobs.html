@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Object Detection Jobs</title>
+    <title>Video Detection Jobs</title>
     <style>
         :root {
             color-scheme: light;
@@ -109,22 +109,22 @@
 <body>
     <div class="wrap">
         <section class="hero">
-            <h1>Object Detection Jobs</h1>
-            <p>Upload an image, let the worker process it, and review cropped artifacts from every previous job.</p>
+            <h1>Video Detection Jobs</h1>
+            <p>Upload a video, sample frames every 0.5 seconds, and review annotated frame detections for people and phones.</p>
         </section>
 
         {% if uploaded %}
-        <div class="note">Upload accepted. The job detail page will refresh while detection is still running.</div>
+        <div class="note">Upload accepted. The job detail page will refresh while frame extraction and detection are still running.</div>
         {% endif %}
         {% if error %}
         <div class="note error">{{ error }}</div>
         {% endif %}
 
         <section class="panel">
-            <h2>Upload</h2>
+            <h2>Upload Video</h2>
             <form action="/upload" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/bmp" required>
-                <button type="submit">Start Detection</button>
+                <input type="file" name="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" required>
+                <button type="submit">Start Video Detection</button>
             </form>
         </section>
 
@@ -143,7 +143,7 @@
                         </div>
                         <div class="row">
                             <span class="pill">{{ job.status }}</span>
-                            <span class="meta">{{ job.detections_count }} detections</span>
+                            <span class="meta">{{ job.detections_count }} filtered detections</span>
                             <a class="button" href="/jobs/{{ job.document_id }}">View Result</a>
                         </div>
                     </div>
