@@ -1,6 +1,24 @@
 services:
+  model_builder:
+    build:
+      context: ../tools/model_builder
+      dockerfile: Dockerfile
+    command: python prepare_model.py
+    environment:
+      MODEL_ONNX_PATH: /models/detr-resnet-50.onnx
+      MODEL_REPO_ID: facebook/detr-resnet-50
+      MODEL_HF_ONNX_FILENAME: model.onnx
+      MODEL_EXPORT_OPSET: 18
+      MODEL_IMAGE_SIZE: 800
+    profiles: ["tools"]
+    restart: "no"
+    volumes:
+      - model_data:/models
+
   api:
-    build: .
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
@@ -24,7 +42,9 @@ services:
       - model_data:/app/models
 
   celery_worker:
-    build: .
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     command: celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=2
     environment:
       POSTGRES_SERVER: postgres
@@ -46,7 +66,9 @@ services:
       - model_data:/app/models
 
   frontend:
-    build: .
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     command: uvicorn frontend_app.main:app --host 0.0.0.0 --port 8080
     ports:
       - "8080:8080"
