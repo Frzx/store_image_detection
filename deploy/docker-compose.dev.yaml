@@ -1,20 +1,4 @@
 services:
-  model_builder:
-    build:
-      context: ../tools/model_builder
-      dockerfile: Dockerfile
-    command: python prepare_model.py
-    environment:
-      MODEL_ONNX_PATH: /models/detr-resnet-50.onnx
-      MODEL_REPO_ID: facebook/detr-resnet-50
-      MODEL_HF_ONNX_FILENAME: model.onnx
-      MODEL_EXPORT_OPSET: 18
-      MODEL_IMAGE_SIZE: 800
-    profiles: ["tools"]
-    restart: "no"
-    volumes:
-      - model_data:/models
-
   api:
     build:
       context: ../backend
@@ -31,12 +15,15 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: object_detection
+      MODEL_ARTIFACT_ROOT: models
+      MODEL_NAME: object-detector
+      MODEL_VERSION: v1
     depends_on:
       redis:
         condition: service_started
     volumes:
       - ../backend:/app
-      - model_data:/app/models
+      - ../models:/app/models
 
   celery_worker:
     build:
@@ -53,12 +40,15 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: object_detection
+      MODEL_ARTIFACT_ROOT: models
+      MODEL_NAME: object-detector
+      MODEL_VERSION: v1
     depends_on:
       redis:
         condition: service_started
     volumes:
       - ../backend:/app
-      - model_data:/app/models
+      - ../models:/app/models
 
   frontend:
     build:
@@ -80,6 +70,3 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-
-volumes:
-  model_data:

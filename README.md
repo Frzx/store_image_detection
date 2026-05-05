@@ -5,16 +5,42 @@ This repo is intentionally split into separate deployable units:
 - `backend/`: API + Celery worker + ONNX inference runtime
 - `frontend/`: browser UI
 - `tools/model_builder/`: one-time model preparation utility
-- `deploy/`: Docker Compose orchestration
+- `deploy/`: Docker Compose orchestration, including a dedicated model-builder Compose file
 
 Uploaded videos are processed into annotated frames stored in `shared/frames`. The worker samples frames every `0.5` seconds and keeps only `person` and `cell phone` detections from the current model.
+
+## Model Artifacts
+
+Model artifacts live in a versioned local artifact store. The intended layout is:
+
+```text
+models/
+  object-detector/
+    v1/
+      model.onnx
+      config.json
+      preprocessor_config.json
+      metadata.json
+  object-detector-phone-tuned/
+    v1/
+      ...
+```
+
+The backend loads one configured model artifact directory at a time using:
+
+- `MODEL_ARTIFACT_ROOT`
+- `MODEL_NAME`
+- `MODEL_VERSION`
 
 ## Quick Start
 
 From the repo root:
 
 ```powershell
-docker compose -f deploy/docker-compose.yaml --profile tools run --rm model_builder
+# 1. Create the model artifact bundle in the artifact store
+docker compose -f deploy/docker-compose.model-builder.yaml run --rm model_builder
+
+# 2. Start the runtime stack
 docker compose -f deploy/docker-compose.yaml up --build
 ```
 
@@ -34,13 +60,51 @@ Then open:
 
 ## Prepare The Model
 
-Before starting the runtime stack for the first time, or whenever you want to refresh model assets:
+Before starting the runtime stack for the first time on a new machine, you must create the model artifact bundle. Run:
 
 ```powershell
-docker compose -f deploy/docker-compose.yaml --profile tools run --rm model_builder
+docker compose -f deploy/docker-compose.model-builder.yaml build --no-cache
+docker compose -f deploy/docker-compose.model-builder.yaml run --rm model_builder
 ```
 
-The model builder writes the ONNX model and related local config files into the shared `model_data` Docker volume. If the files are already present, it exits quickly and skips rebuilding.
+The model builder writes the ONNX model and related local config files into the local [models](C:/Users/91963/projects/object_detection_tesco/models) directory on your machine. With the current configuration, it creates:
+
+```text
+models/
+  object-detector/
+    v1/
+      model.onnx
+      config.json
+      preprocessor_config.json
+      metadata.json
+```
+
+After that, start the runtime stack with:
+
+```powershell
+docker compose -f deploy/docker-compose.yaml up --build
+```
+
+If you run the model builder again later, it checks whether the artifact bundle already exists and skips rebuilding when the files are already present.
+
+If you change code under [tools/model_builder](C:/Users/91963/projects/object_detection_tesco/tools/model_builder) or its Dockerfile, rebuild the model-builder image before running it again:
+
+```powershell
+docker compose -f deploy/docker-compose.model-builder.yaml build --no-cache
+docker compose -f deploy/docker-compose.model-builder.yaml run --rm model_builder
+```
+
+After a successful run, you should be able to open [models](C:/Users/91963/projects/object_detection_tesco/models) on the host machine and see:
+
+```text
+models/
+  object-detector/
+    v1/
+      model.onnx
+      config.json
+      preprocessor_config.json
+      metadata.json
+```
 
 ## Run With Docker Compose
 
@@ -80,7 +144,7 @@ docker compose -f deploy/docker-compose.yaml up
 There is also a development stack:
 
 ```powershell
-docker compose -f deploy/docker-compose.dev.yaml --profile tools run --rm model_builder
+docker compose -f deploy/docker-compose.model-builder.yaml run --rm model_builder
 docker compose -f deploy/docker-compose.dev.yaml up --build
 ```
 
@@ -108,9 +172,11 @@ ffmpeg -version
 ## First Run Notes
 
 - The project runs inference on CPU using ONNX Runtime.
+- First-time setup is a 2-step process: create model artifacts first, then start the runtime stack.
 - Runtime services do not download model weights or export ONNX on startup.
 - If model assets are missing, the API or worker will fail fast with a clear error telling you to run the model builder utility step.
 - The first model preparation run may take longer because it may need to download or export the ONNX artifact.
+- Model artifacts are stored directly in the host `models/` directory and are shared with the runtime containers through bind mounts.
 - The worker uses `ffmpeg` to extract frames every `0.5` seconds before running detection.
 - You may see an ONNX Runtime GPU discovery warning in Docker logs. The app still runs on `CPUExecutionProvider`.
 
@@ -119,7 +185,7 @@ ffmpeg -version
 - `backend/Dockerfile`: backend runtime image for API and worker
 - `frontend/Dockerfile`: lightweight frontend image with only UI dependencies
 - `tools/model_builder/Dockerfile`: one-time model builder image with heavy model-prep dependencies
-- `model_data` Docker volume: shared ONNX model/config artifacts consumed by runtime services
+- host `models/` directory: shared local artifact store mounted into the model builder, API, and worker containers
 
 ## Test The App
 
@@ -128,7 +194,7 @@ ffmpeg -version
 1. Start the stack:
 
 ```powershell
-docker compose -f deploy/docker-compose.yaml --profile tools run --rm model_builder
+docker compose -f deploy/docker-compose.model-builder.yaml run --rm model_builder
 docker compose -f deploy/docker-compose.yaml up --build
 ```
 
@@ -184,7 +250,7 @@ docker compose -f deploy/docker-compose.yaml logs -f celery_worker
 Follow only the model builder logs:
 
 ```powershell
-docker compose -f deploy/docker-compose.yaml --profile tools logs -f model_builder
+docker compose -f deploy/docker-compose.model-builder.yaml logs -f model_builder
 ```
 
 Follow only the API logs:
@@ -203,8 +269,9 @@ docker compose -f deploy/docker-compose.yaml logs -f frontend
 
 - `backend/`: backend code, dependencies, and Dockerfile
 - `frontend/`: frontend code, dependencies, and Dockerfile
-- `deploy/`: production and development Compose files
+- `deploy/`: production, development, and model-builder Compose files
+- `deploy/docker-compose.model-builder.yaml`: standalone Compose file for one-time model preparation
 - `tools/model_builder/prepare_model.py`: one-shot ONNX preparation entrypoint for the model-builder utility container
 - `tools/model_builder/`: standalone one-time utility project with its own dependencies and Dockerfile
-- `models/`: ONNX model storage inside the shared Docker volume
+- `models/`: local host-side model artifact store shared across containers
 - `shared/`: uploaded videos during processing and generated frame artifacts

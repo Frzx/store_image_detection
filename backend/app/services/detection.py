@@ -11,20 +11,28 @@ from app.config import model_settings
 
 
 SAFE_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
-TARGET_LABELS = {"person", "cell phone"}
 
 
 class ObjectDetector:
-    def __init__(self, model_path: str | None = None):
-        self.model_path = Path(model_path or model_settings.MODEL_ONNX_PATH)
-        self.model_dir = self.model_path.parent
-        self.image_size = model_settings.MODEL_IMAGE_SIZE
-        self.score_threshold = model_settings.MODEL_SCORE_THRESHOLD
+    def __init__(self, artifact_dir: str | None = None):
+        self.artifact_dir = Path(artifact_dir or model_settings.MODEL_ARTIFACT_DIR)
+        self.model_path = self.artifact_dir / "model.onnx"
+        self.metadata_path = self.artifact_dir / "metadata.json"
+        self.preprocessor_path = self.artifact_dir / "preprocessor_config.json"
+        self.model_config_path = self.artifact_dir / "config.json"
         self._validate_model_assets()
-        self.preprocessor_config = self._load_json(self.model_dir / "preprocessor_config.json")
-        model_config = self._load_json(self.model_dir / "config.json")
+        self.metadata = self._load_json(self.metadata_path)
+        self.preprocessor_config = self._load_json(self.preprocessor_path)
+        model_config = self._load_json(self.model_config_path)
         id2label = model_config.get("id2label", {})
         self.classes = {int(label_id): label for label_id, label in id2label.items()}
+        self.image_size = int(self.metadata.get("image_size", model_settings.MODEL_IMAGE_SIZE))
+        self.score_threshold = float(
+            self.metadata.get("score_threshold", model_settings.MODEL_SCORE_THRESHOLD)
+        )
+        self.target_labels = set(
+            self.metadata.get("target_labels", ["person", "cell phone"])
+        )
         self.image_mean = np.asarray(
             self.preprocessor_config.get("image_mean", [0.485, 0.456, 0.406]),
             dtype=np.float32,
@@ -45,15 +53,16 @@ class ObjectDetector:
     def _validate_model_assets(self) -> None:
         required_files = [
             self.model_path,
-            self.model_dir / "config.json",
-            self.model_dir / "preprocessor_config.json",
+            self.model_config_path,
+            self.preprocessor_path,
+            self.metadata_path,
         ]
         missing_files = [path for path in required_files if not path.exists()]
         if missing_files:
             missing_list = ", ".join(str(path) for path in missing_files)
             raise FileNotFoundError(
-                "Missing prepared model assets. "
-                "Run the model builder container before starting runtime services: "
+                "Missing prepared model artifact bundle. "
+                "Run the model builder before starting runtime services: "
                 f"{missing_list}"
             )
 
@@ -102,7 +111,7 @@ class ObjectDetector:
 
         for score, label_id, box in zip(scores, label_ids, boxes):
             label = self.classes.get(int(label_id), "unknown")
-            if label not in TARGET_LABELS or float(score) < self.score_threshold:
+            if label not in self.target_labels or float(score) < self.score_threshold:
                 continue
 
             x1, y1, x2, y2 = [float(value) for value in box.tolist()]

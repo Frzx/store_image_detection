@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _base_config = SettingsConfigDict(
@@ -48,7 +50,9 @@ class CeleryRedisSettings(BaseSettings):
 
 
 class ModelSettings(BaseSettings):
-    MODEL_ONNX_PATH: str = "models/detr-resnet-50.onnx"
+    MODEL_ARTIFACT_ROOT: str = "models"
+    MODEL_NAME: str = "object-detector"
+    MODEL_VERSION: str = "v1"
     MODEL_REPO_ID: str = "facebook/detr-resnet-50"
     MODEL_HF_ONNX_FILENAME: str = "model.onnx"
     MODEL_EXPORT_OPSET: int = 18
@@ -58,6 +62,16 @@ class ModelSettings(BaseSettings):
     FFMPEG_BIN: str = "ffmpeg"
 
     model_config = _base_config
+
+    @property
+    def MODEL_ARTIFACT_DIR(self) -> str:
+        return str(
+            (
+                Path(self.MODEL_ARTIFACT_ROOT)
+                / self.MODEL_NAME
+                / self.MODEL_VERSION
+            ).as_posix()
+        )
 
 
 database_settings = DatabaseSettings()

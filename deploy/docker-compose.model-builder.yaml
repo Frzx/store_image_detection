@@ -1,0 +1,19 @@
+services:
+  model_builder:
+    build:
+      context: ../tools/model_builder
+      dockerfile: Dockerfile
+    command: python prepare_model.py
+    environment:
+      MODEL_ARTIFACT_ROOT: /models
+      MODEL_NAME: object-detector
+      MODEL_VERSION: v1
+      MODEL_REPO_ID: facebook/detr-resnet-50
+      MODEL_HF_ONNX_FILENAME: model.onnx
+      MODEL_EXPORT_OPSET: 18
+      MODEL_IMAGE_SIZE: 800
+      MODEL_SCORE_THRESHOLD: 0.3
+      MODEL_TARGET_LABELS: person,cell phone
+    restart: "no"
+    volumes:
+      - ../models:/models
